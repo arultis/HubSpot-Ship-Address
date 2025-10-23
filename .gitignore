@@ -1,0 +1,7 @@
+hubspot.config.yml
+node_modules/
+hs-deploy.sh
+**/dist/
+.DS_Store
+.vscode/
+.vite/

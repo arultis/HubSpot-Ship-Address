@@ -1,0 +1,12 @@
+{
+  "appFunctions": {
+    "fetchAssociatedContacts": {
+      "file": "fetchAssociatedContacts.js",
+      "secrets": ["PRIVATE_ACCESS_TOKEN"]
+    },
+    "fetchAssociatedCustomObjects": {
+      "file": "fetchAssociatedCustomObjects.js",
+      "secrets": ["PRIVATE_ACCESS_TOKEN"]
+    }
+  }
+}

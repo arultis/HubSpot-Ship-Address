@@ -1,0 +1,24 @@
+{
+  "name": "Shipping Address",
+  "description": "This is an app that provides UI extensions for Classic Safari Company hubspot",
+  "uid": "118d8c93-e277-505a-b086-aa33722c144b",
+  "scopes": [
+    "crm.objects.deals.read",
+    "crm.objects.deals.write",
+    "crm.objects.custom.read",
+    "crm.objects.custom.write",
+    "crm.objects.companies.read",
+    "crm.objects.contacts.read",
+    "crm.objects.contacts.write"
+  ],
+  "public": false,
+  "extensions": {
+    "crm": {
+      "cards": [
+        {
+          "file": "extensions/extension.json"
+        }
+      ]
+    }
+  }
+}
