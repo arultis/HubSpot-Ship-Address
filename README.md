@@ -1,1 +1,1 @@
-# HubSpot-Chip-Address-UI-Extenisons
+# HubSpot-Ship-address-ui-extension
