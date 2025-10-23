@@ -1,0 +1,18 @@
+{
+  "type": "crm-card",
+  "name": "Shipping Address",
+  "description": "Card to select associated contacts and custom objects for a deal",
+  "data": {
+    "title": "Shipping Address",
+    "uid": "840eb4a5-b95a-5e59-8322-d6b89bb75d15",
+    "location": "crm.record.tab",
+    "module": {
+      "file": "card.tsx"
+    },
+    "objectTypes": [
+      {
+        "name": "deals"
+      }
+    ]
+  }
+}
