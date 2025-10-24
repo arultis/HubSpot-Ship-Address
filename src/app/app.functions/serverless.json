@@ -7,6 +7,14 @@
     "fetchAssociatedCustomObjects": {
       "file": "fetchAssociatedCustomObjects.js",
       "secrets": ["PRIVATE_ACCESS_TOKEN"]
+    },
+    "fetchAvailableShippingAddresses": {
+      "file": "fetchAvailableShippingAddresses.js",
+      "secrets": ["PRIVATE_ACCESS_TOKEN"]
+    },
+    "associateCustomObjectWithDeal": {
+      "file": "associateCustomObjectWithDeal.js",
+      "secrets": ["PRIVATE_ACCESS_TOKEN"]
     }
   }
 }

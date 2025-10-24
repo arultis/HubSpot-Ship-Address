@@ -1,97 +1,168 @@
-import { hubspot, Flex, Text, LoadingSpinner } from "@hubspot/ui-extensions";
-import { useEffect, useState, useCallback } from "react";
+import {
+  hubspot,
+  Flex,
+  Dropdown,
+  Text,
+  Button,
+  LoadingSpinner,
+} from "@hubspot/ui-extensions";
+import { useEffect, useState, useCallback, useMemo } from "react";
 
 interface CustomObject {
   id: string;
   name?: string;
+  properties?: Record<string, any>;
 }
 
 interface ExtensionProps {
   context: any;
-  actions: any;
   runServerlessFunction: (params: any) => Promise<any>;
 }
 
-hubspot.extend(({ context, actions, runServerlessFunction }: any) => (
-  <ShippingAddress
+// Attach extension to HubSpot UI
+hubspot.extend(({ context, runServerlessFunction }: any) => (
+  <ShippingAddressCard
     context={context}
-    actions={actions}
     runServerlessFunction={runServerlessFunction}
   />
 ));
 
-const ShippingAddress = ({
+const ShippingAddressCard = ({
   context,
   runServerlessFunction,
 }: ExtensionProps) => {
-  if (!("crm" in context)) {
+  if (!context?.crm?.objectId) {
     return <Text>This extension only works in CRM records.</Text>;
   }
 
-  const dealId = context.crm.objectId; // Current CRM record is assumed to be a deal
+  const dealId = context.crm.objectId;
 
-  const [customObjects, setCustomObjects] = useState<CustomObject[]>([]);
-  const [loadingObjects, setLoadingObjects] = useState(false);
+  const [addresses, setAddresses] = useState<CustomObject[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string>("");
+  const [loading, setLoading] = useState(false);
+  const [associating, setAssociating] = useState(false);
 
-  const fetchShippingAddresses = useCallback(async () => {
+  // Fetch all addresses associated with contacts of the deal
+  const fetchAddresses = useCallback(async () => {
     if (!dealId) return;
-    setLoadingObjects(true);
+    setLoading(true);
+
     try {
-      // Call your serverless function to fetch associated contacts first
+      console.log(`🔹 Fetching contacts for deal ${dealId}...`);
+
       const contactsData = await runServerlessFunction({
         name: "fetchAssociatedContacts",
         parameters: { dealId },
       });
 
       const contacts = contactsData?.response?.data || [];
+      console.log(`🔹 Found ${contacts.length} contacts`);
+
       if (!contacts.length) {
-        setCustomObjects([]);
+        setAddresses([]);
         return;
       }
 
-      // Collect all shipping addresses from associated contacts
-      const allAddresses: CustomObject[] = [];
+      const addressesArrays = await Promise.all(
+        contacts.map((contact: { id: any }) =>
+          runServerlessFunction({
+            name: "fetchAssociatedCustomObjects",
+            parameters: {
+              contactId: contact.id,
+              customObjectType: "2-35211388",
+            },
+          })
+        )
+      );
 
-      for (const contact of contacts) {
-        const addressesData = await runServerlessFunction({
-          name: "fetchAssociatedCustomObjects",
-          parameters: {
-            contactId: contact.id,
-            customObjectType: "2-35211388", // Replace with your shipping address custom object type
-          },
-        });
+      // Flatten and deduplicate addresses
+      const allAddresses: CustomObject[] = addressesArrays
+        .flatMap((res) => res?.response?.data || [])
+        .filter(Boolean);
 
-        const addresses = addressesData?.response?.data || [];
-        allAddresses.push(...addresses);
-      }
+      const uniqueAddresses = Array.from(
+        new Map(allAddresses.map((a) => [a.id, a])).values()
+      );
 
-      setCustomObjects(allAddresses);
+      setAddresses(uniqueAddresses);
     } catch (err) {
-      console.error("Error fetching shipping addresses:", err);
-      setCustomObjects([]);
+      console.error("Error fetching addresses:", err);
+      setAddresses([]);
     } finally {
-      setLoadingObjects(false);
+      setLoading(false);
     }
   }, [dealId, runServerlessFunction]);
 
+  // Memoized map for fast dropdown label lookup
+  const addressMap = useMemo(
+    () => new Map(addresses.map((a) => [a.id, a])),
+    [addresses]
+  );
+
   useEffect(() => {
-    fetchShippingAddresses();
-  }, [fetchShippingAddresses]);
+    fetchAddresses();
+  }, [fetchAddresses]);
+
+  const getAddressLabel = (obj: CustomObject) =>
+    obj.name || obj.properties?.name || obj.id;
+
+  const associateAddressWithDeal = async () => {
+    if (!selectedAddressId) return;
+    setAssociating(true);
+
+    try {
+      await runServerlessFunction({
+        name: "associateCustomObjectWithDeal",
+        parameters: {
+          dealId,
+          customObjectType: "2-35211388",
+          customObjectId: selectedAddressId,
+        },
+      });
+
+      setSelectedAddressId("");
+      await fetchAddresses();
+    } catch (err) {
+      console.error("Error associating address:", err);
+    } finally {
+      setAssociating(false);
+    }
+  };
 
   return (
     <Flex direction="column" gap="md" wrap="nowrap">
-      <Text format={{ fontWeight: "bold" }}>Associated Shipping Addresses</Text>
-      {loadingObjects ? (
-        <LoadingSpinner label="Loading shipping addresses..." />
-      ) : customObjects.length === 0 ? (
-        <Text>No shipping addresses associated with this deal.</Text>
+      <Text format={{ fontWeight: "bold" }}>
+        Shipping Addresses (via Contacts)
+      </Text>
+
+      {loading ? (
+        <LoadingSpinner label="Loading addresses..." />
+      ) : addresses.length === 0 ? (
+        <Text>No shipping addresses found for this deal's contacts.</Text>
       ) : (
-        customObjects.map((obj) => (
-          <Text key={obj.id}>Name : {obj.name || obj.id}</Text>
-        ))
+        <>
+          <Dropdown
+            buttonText={
+              selectedAddressId
+                ? getAddressLabel(addressMap.get(selectedAddressId)!)
+                : "Select Shipping Address"
+            }
+            options={addresses.map((obj) => ({
+              label: getAddressLabel(obj),
+              value: obj.id,
+              onClick: () => setSelectedAddressId(obj.id),
+            }))}
+          />
+          <Button
+            onClick={associateAddressWithDeal}
+            disabled={!selectedAddressId || associating}
+          >
+            {associating ? "Associating..." : "Add Association to Deal"}
+          </Button>
+        </>
       )}
     </Flex>
   );
 };
 
-export default ShippingAddress;
+export default ShippingAddressCard;

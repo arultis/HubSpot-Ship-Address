@@ -4,23 +4,36 @@ exports.main = async (context = {}) => {
   const { dealId } = context.parameters;
 
   if (!dealId) {
+    console.warn(" No dealId provided in parameters.");
     return { statusCode: 200, data: [] };
   }
 
   const client = new hubspot.Client({
-    accessToken: process.env.PRIVATE_APP_ACCESS_TOKEN,
+    accessToken: context.secrets.PRIVATE_APP_ACCESS_TOKEN,
   });
 
   try {
-    const associations = await client.crm.deals.associationsApi.getAll(
-      dealId,
-      "contacts"
+    const batchRequest = {
+      inputs: [{ id: dealId }],
+      limit: 100,
+    };
+
+    const associations = await client.crm.associations.v4.batchApi.getPage(
+      "deals",
+      "contacts",
+      batchRequest
     );
 
-    const contactIds = associations.results.map((a) => a.id);
+    // Use toObjectId instead of id
+    const contactIds = [];
+    associations.results.forEach((item) => {
+      item.to.forEach((assoc) => {
+        contactIds.push(assoc.toObjectId);
+      });
+    });
 
     if (!contactIds.length) {
-      console.warn(`No contacts associated with deal ${dealId}`);
+      console.warn(` No contacts associated with deal ${dealId}`);
       return { statusCode: 200, data: [] };
     }
 
@@ -29,26 +42,18 @@ exports.main = async (context = {}) => {
       inputs: contactIds.map((id) => ({ id })),
     });
 
-    const contacts = contactsResponse.results.map((record) => {
-      const contact = {
-        id: record.id,
-        properties: {
-          firstname: record.properties?.firstname || null,
-          lastname: record.properties?.lastname || null,
-          email: record.properties?.email || null,
-        },
-      };
-      return contact;
-    });
-
-    if (!contacts.length) {
-      console.warn(`Batch API returned no contact records for deal ${dealId}`);
-      return { statusCode: 200, data: [] };
-    }
+    const contacts = contactsResponse.results.map((record) => ({
+      id: record.id,
+      properties: {
+        firstname: record.properties?.firstname || null,
+        lastname: record.properties?.lastname || null,
+        email: record.properties?.email || null,
+      },
+    }));
 
     return { statusCode: 200, data: contacts };
   } catch (err) {
-    console.error("Error fetching contacts:", err);
+    console.error(" Error fetching contacts:", err);
     return { statusCode: 200, data: [] };
   }
 };

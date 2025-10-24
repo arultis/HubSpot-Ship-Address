@@ -4,21 +4,24 @@ exports.main = async (context = {}) => {
   const { contactId, customObjectType } = context.parameters;
 
   if (!contactId || !customObjectType) {
-    console.warn("Missing contactId or customObjectType");
+    console.warn(" Missing contactId or customObjectType");
     return { statusCode: 200, data: [] };
   }
 
   const client = new hubspot.Client({
-    accessToken: process.env.PRIVATE_APP_ACCESS_TOKEN,
+    accessToken: context.secrets.PRIVATE_APP_ACCESS_TOKEN,
   });
 
   try {
-    const associations = await client.crm.contacts.associationsApi.getAll(
+    // Fetch associated custom objects
+    const associations = await client.crm.associations.v4.basicApi.getPage(
+      "contacts",
       contactId,
       customObjectType
     );
 
-    const objectIds = associations.results.map((a) => a.id);
+    // Extract associated object IDs directly
+    const objectIds = associations.results.map((item) => item.toObjectId);
 
     if (!objectIds.length) {
       console.warn(`No custom objects associated with contact ${contactId}`);
@@ -33,13 +36,10 @@ exports.main = async (context = {}) => {
       }
     );
 
-    const objects = batchResponse.results.map((record) => {
-      const obj = {
-        id: record.id,
-        name: record.properties.name || record.id,
-      };
-      return obj;
-    });
+    const objects = batchResponse.results.map((record) => ({
+      id: record.id,
+      name: record.properties?.name || record.id,
+    }));
 
     return { statusCode: 200, data: objects };
   } catch (err) {
