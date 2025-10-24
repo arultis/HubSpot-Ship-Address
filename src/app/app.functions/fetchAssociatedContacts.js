@@ -9,7 +9,7 @@ exports.main = async (context = {}) => {
   }
 
   const client = new hubspot.Client({
-    accessToken: context.secrets.PRIVATE_APP_ACCESS_TOKEN,
+    accessToken: process.env.PRIVATE_APP_ACCESS_TOKEN,
   });
 
   try {
@@ -44,11 +44,6 @@ exports.main = async (context = {}) => {
 
     const contacts = contactsResponse.results.map((record) => ({
       id: record.id,
-      properties: {
-        firstname: record.properties?.firstname || null,
-        lastname: record.properties?.lastname || null,
-        email: record.properties?.email || null,
-      },
     }));
 
     return { statusCode: 200, data: contacts };

@@ -9,7 +9,7 @@ exports.main = async (context = {}) => {
   }
 
   const client = new hubspot.Client({
-    accessToken: context.secrets.PRIVATE_APP_ACCESS_TOKEN,
+    accessToken: process.env.PRIVATE_APP_ACCESS_TOKEN,
   });
 
   try {
